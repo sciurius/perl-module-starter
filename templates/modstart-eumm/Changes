@@ -1,0 +1,5 @@
+Revision history for [% module.distname %]
+
+[% module.version %]    Date/time
+        First version, released on an unsuspecting world.
+

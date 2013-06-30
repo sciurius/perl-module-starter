@@ -1,0 +1,10 @@
+Changes
+MANIFEST
+Makefile.PL
+README
+lib/App/Module/Setup.pm
+lib/App/Module/Setup/Templates/Default.pm
+scripts/module-setup
+t/00-load.t
+t/pod-coverage.t
+t/pod.t
