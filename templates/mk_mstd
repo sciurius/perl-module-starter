@@ -1,0 +1,30 @@
+#! /usr/bin/perl
+
+use strict;
+use warnings;
+use File::Find;
+
+open( my $tpl, '<', "mstd.tpl" ) || die;
+open( my $mod, '>', "../lib/App/Module/Setup/Templates/Default.pm" ) or die;
+
+while ( <$tpl> ) {
+    if ( /\[\%\# FILEDATA GOES HERE \%\]/ ) {
+	find( { wanted => sub {
+		    return unless -f;
+		    return if /~$/;
+		    my $f = $_;
+		    $f =~ s;.*default/;;;
+		    print { $mod } "[\% FILE ", $f, " \%]\n";
+		    open( my $fd, '<', $_ ) or die($_);
+		    print { $mod } <$fd>;
+		    close($fd);
+	        },
+                no_chdir => 1,
+              }, "default" );
+	next;
+    }
+    print { $mod } $_;
+}
+
+close($tpl);
+close($mod) or die;

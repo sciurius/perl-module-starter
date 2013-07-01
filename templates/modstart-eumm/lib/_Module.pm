@@ -50,7 +50,7 @@ sub function2 {
 
 =head1 AUTHOR
 
-Johan Vromans, C<< <jv at cpan.org> >>
+[% author.name %], C<< <[% author.cpanid %] at cpan.org> >>
 
 =head1 BUGS
 
@@ -96,7 +96,7 @@ L<http://search.cpan.org/dist/[% module.distname %]>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2013 Johan Vromans, all rights reserved.
+Copyright [% current.year %] [% author.name %], all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

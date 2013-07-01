@@ -4,7 +4,8 @@ package App::Module::Setup;
 
 use warnings;
 use strict;
-use Carp;
+use Carp qw( carp croak );
+
 
 =head1 NAME
 
@@ -26,10 +27,12 @@ Perhaps a little code snippet.
     my $foo = App::Module::Setup->new();
     ...
 
+
 =head1 EXPORT
 
 A list of functions that can be exported.  You can delete this section
 if you don't export anything, such as for a purely object-oriented module.
+
 
 =head1 FUNCTIONS
 
@@ -47,9 +50,11 @@ sub function1 {
 sub function2 {
 }
 
+
 =head1 AUTHOR
 
-Johan Vromans, C<< <jv at cpan.org> >>
+Johan Vromans, C<< <JV at CPAN dot org> >>
+
 
 =head1 BUGS
 
@@ -58,14 +63,11 @@ the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=App-Module
 automatically be notified of progress on your bug as I make changes.
 
 
-
-
 =head1 SUPPORT
 
 You can find documentation for this module with the perldoc command.
 
     perldoc App::Module::Setup
-
 
 You can also look for information at:
 

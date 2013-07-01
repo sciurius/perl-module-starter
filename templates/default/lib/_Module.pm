@@ -4,6 +4,8 @@ package [% module.name %];
 
 use warnings;
 use strict;
+use Carp qw( carp croak );
+
 
 =head1 NAME
 
@@ -12,6 +14,7 @@ use strict;
 =cut
 
 our $VERSION = '[% module.version %]';
+
 
 =head1 SYNOPSIS
 
@@ -24,10 +27,12 @@ Perhaps a little code snippet.
     my $foo = [% module.name %]->new();
     ...
 
+
 =head1 EXPORT
 
 A list of functions that can be exported.  You can delete this section
 if you don't export anything, such as for a purely object-oriented module.
+
 
 =head1 FUNCTIONS
 
@@ -48,12 +53,12 @@ sub function2 {
 
 =head1 AUTHOR
 
-[% author.name %], C<< <[% author.cpan-id %] at cpan.org> >>
+[% author.name %], C<< <[% author.cpanid %] at CPAN dot org> >>
 
 
 =head1 BUGS
 
-Please report any bugs or feature requests to C<bug-[% module.distname.lc %] at rt.cpan.org>, or through
+Please report any bugs or feature requests to C<bug-[% module.distnamelc %] at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=[% module.distname %]>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
 
@@ -88,6 +93,7 @@ Copyright [% current.year %] [% author.name %], all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
+
 
 =cut
 

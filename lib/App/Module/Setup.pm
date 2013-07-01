@@ -4,7 +4,12 @@ package App::Module::Setup;
 
 use warnings;
 use strict;
-use Carp;
+use Carp qw(croak);
+use File::Find;
+use File::Basename qw( dirname );
+use File::Path qw( make_path );
+
+$Carp::Internal{ (__PACKAGE__) }++;
 
 =head1 NAME
 
@@ -67,21 +72,97 @@ sub main {
 	"current.year"   => 1900 + (localtime)[5],
 	"author.name"    => $options->{author} || (getpwuid($<))[6],
 	"author.email"   => $options->{email},
-	"author.cpan-id" => $options->{"cpan-id"},
+	"author.cpanid"  => $options->{"cpanid"},
       };
 
+    my $dir;
     ( my $t = $mod ) =~ s/::/-/g;
-    $vars->{"module.distname"} = $t;	# Foo-Bar
+    $vars->{"module.distname"} = $dir = $t;	# Foo-Bar
     $vars->{"module.distnamelc"} = lc($t);
     ( $t = $mod ) =~ s/::/\//g;
     $vars->{"module.filename"} = $t . ".pm";	# Foo/Bar.pm
-    $vars->{"author.cpan-id"} ||= $1
+    $vars->{"author.cpanid"} ||= $1
       if $options->{email} =~ /^(.*)\@cpan.org$/i;
-    $vars->{"author.cpan-id"} = uc( $vars->{"author.cpan-id"} );
+    $vars->{"author.cpanid"} = uc( $vars->{"author.cpanid"} );
 
     use Data::Dumper;
     warn Dumper($vars);
+
+    if ( -d $dir ) {
+	Carp::croak( "Directory $dir exists. Aborted" );
+    }
+
+    my $ok;
+    my $tpldir = "templates/". $options->{template};
+    my ( $files, $dirs, $data );
+    for ( "./", @{ $options->{_configs} } ) {
+	if ( -d "$_$tpldir" ) {
+	    ( $files, $dirs, $data ) =
+	      load_templates_from_directory( "$_$tpldir" );
+	    last if $files;
+	}
+    }
+
+    unless ( $files ) {
+	use App::Module::Setup::Templates::Default;
+	( $files, $dirs, $data ) =
+	  App::Module::Setup::Templates::Default->load;
+    }
+
+    for ( @$files ) {
+	if ( $_ =~ /^(.*)_Module.pm$/ ) {
+	    my $t = $1 . $vars->{"module.filename"};
+	    push( @$dirs, dirname($t) );
+	    $data->{$t} = delete $data->{$_};
+	    $_ = $t;
+	}
+    }
+
+    make_path( $dir,
+	       ( map { $dir . "/" . $_ } @$dirs ),
+	       { verbose => $options->{trace} } );
+
+    use App::Module::Setup::Templates;
+
+    for my $target ( @$files ) {
+	open( my $fd, '>', $dir . "/" . $target )
+	  or croak( "Error opening ", "$dir/$target: $!\n" );
+	print { $fd } App::Module::Setup::Templates::templater( $data->{$target}, $vars );
+	close($fd)
+	  or croak( "Error writing $target: $!\n" );
+	warn( "Wrote: $dir/$target\n" )
+	  if $options->{verbose};
+    }
+
 }
+
+sub load_templates_from_directory {
+    my ( $dir ) = shift;
+    my $dl = length($dir);
+    $dl++ unless $dir =~ m;/$;;
+    my ( $files, $dirs, $data );
+
+    find( { wanted => sub {
+		return if length($_) < $dl; # skip top
+		my $f = substr( $_, $dl );
+		if ( -d $_ ) {
+		    push( @$dirs, $f );
+		    return;
+		}
+		return unless -f $_;
+		return if /~$/;
+		push( @$files, $f );
+		open( my $fd, '<', $_ )
+		  or croak( "Error reading template $_: $!" );
+		local $/;
+		$data->{$f} = <$fd>;
+		close($fd);
+	    },
+	    no_chdir => 1,
+	  }, $dir );
+    return ( $files, $dirs, $data );
+}
+
 
 
 =head1 AUTHOR
