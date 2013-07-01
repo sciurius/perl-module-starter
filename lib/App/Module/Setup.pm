@@ -17,7 +17,7 @@ App::Module::Setup - a simple setup for a new module
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 
 =head1 SYNOPSIS
