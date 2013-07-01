@@ -85,9 +85,6 @@ sub main {
       if $options->{email} =~ /^(.*)\@cpan.org$/i;
     $vars->{"author.cpanid"} = uc( $vars->{"author.cpanid"} );
 
-    use Data::Dumper;
-    warn Dumper($vars);
-
     if ( -d $dir ) {
 	Carp::croak( "Directory $dir exists. Aborted" );
     }
@@ -134,6 +131,7 @@ sub main {
 	  if $options->{verbose};
     }
 
+    return 1;			# assume everything went ok
 }
 
 sub load_templates_from_directory {
