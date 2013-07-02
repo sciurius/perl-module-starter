@@ -2,6 +2,10 @@
 
 package App::Module::Setup;
 
+### Please use this module via the command line module-setup tool.
+
+our $VERSION = '0.03';
+
 use warnings;
 use strict;
 use Carp qw(croak);
@@ -11,58 +15,12 @@ use File::Path qw( make_path );
 
 $Carp::Internal{ (__PACKAGE__) }++;
 
-=head1 NAME
-
-App::Module::Setup - a simple setup for a new module
-
-=cut
-
-our $VERSION = '0.02';
-
-
-=head1 SYNOPSIS
-
-Nothing in here is meant for public consumption. Use F<module-setup>
-from the command line.
-
-    module-setup --author="A.U. Thor" --email=a.u.thor@example.com Foo::Bar
-
-=head1 DESCRIPTION
-
-This is the core module for App::Module::Setup. If you're not looking
-to extend or alter the behavior of this module, you probably want to
-look at L<module-setup> instead.
-
-App::Module::Setup is used to create a skeletal CPAN distribution,
-including basic builder scripts, tests, documentation, and module
-code. This is done through just one method, C<main>.
-
-=head1 METHODS
-
-=head2 App::Module::Setup->main( $options )
-
-C<main> is the only method you should need to use from outside this
-module; all the other methods are called internally by this one.
-
-This method creates the distribution and populates it with the all the
-requires files.
-
-It takes a reference to a hash of params, as follows:
-
-    module       => $module,   # module to create in distro
-    version      => $version,  # initial version
-    author       => $author,   # author's full name (taken from C<getpwuid> if not provided)
-    email        => $email,    # author's email address
-    verbose      => $verbose,  # bool: print progress messages; defaults to 0
-
-=cut
-
 sub main {
     my $options = shift;
-
     # Just in case we're called as a method.
     eval { $options->{module} || 1 } or $options = shift;
 
+    my $tpldir = "templates/". $options->{template};
     my $mod = $options->{module};
 
     # Replacement variables
@@ -76,55 +34,79 @@ sub main {
       };
 
     my $dir;
-    ( my $t = $mod ) =~ s/::/-/g;
-    $vars->{"module.distname"} = $dir = $t;	# Foo-Bar
-    $vars->{"module.distnamelc"} = lc($t);
-    ( $t = $mod ) =~ s/::/\//g;
-    $vars->{"module.filename"} = $t . ".pm";	# Foo/Bar.pm
-    $vars->{"author.cpanid"} ||= $1
-      if $options->{email} =~ /^(.*)\@cpan.org$/i;
-    $vars->{"author.cpanid"} = uc( $vars->{"author.cpanid"} );
-
-    if ( -d $dir ) {
-	Carp::croak( "Directory $dir exists. Aborted" );
+    if ( $options->{'install-templates'} ) {
+	$dir = $tpldir;
+    }
+    else {
+	( $dir = $mod ) =~ s/::/-/g;
+	$vars->{"module.distname"} = $dir;	# Foo-Bar
+	$vars->{"module.distnamelc"} = lc($dir);
+	( my $t = $mod ) =~ s/::/\//g;
+	$vars->{"module.filename"} = $t . ".pm";	# Foo/Bar.pm
+	$vars->{"author.cpanid"} ||= $1
+	  if $options->{email} =~ /^(.*)\@cpan.org$/i;
+	$vars->{"author.cpanid"} = uc( $vars->{"author.cpanid"} );
     }
 
-    my $ok;
-    my $tpldir = "templates/". $options->{template};
+    if ( -d $dir ) {
+	die( "Directory $dir exists. Aborted!\n" );
+    }
+
+    # Get template names and data.
     my ( $files, $dirs, $data );
-    for ( "./", @{ $options->{_configs} } ) {
-	if ( -d "$_$tpldir" ) {
+    for my $cfg ( "./", @{ $options->{_configs} } ) {
+	if ( -d "$cfg$tpldir" ) {
 	    ( $files, $dirs, $data ) =
-	      load_templates_from_directory( "$_$tpldir" );
+	      load_templates_from_directory( "$cfg$tpldir" );
 	    last if $files;
 	}
     }
 
+    # Nope. Use built-in defaults.
     unless ( $files ) {
-	use App::Module::Setup::Templates::Default;
+	unless ( $options->{template} eq "default" ) {
+	    warn( "No templates found for ", $options->{template},
+		  ", using default templates\n" );
+	}
+	require App::Module::Setup::Templates::Default;
 	( $files, $dirs, $data ) =
 	  App::Module::Setup::Templates::Default->load;
     }
 
-    for ( @$files ) {
-	if ( $_ =~ /^(.*)_Module.pm$/ ) {
-	    my $t = $1 . $vars->{"module.filename"};
-	    push( @$dirs, dirname($t) );
-	    $data->{$t} = delete $data->{$_};
-	    $_ = $t;
+    if ( $options->{'install-templates'} ) {
+	warn( "Writing built-in templates to $dir\n" );
+    }
+    else {
+	# Change the magic _Module.pm name to
+	# the module file name.
+	for my $file ( @$files ) {
+	    if ( $file =~ /^(.*)_Module.pm$/ ) {
+		my $t = $1 . $vars->{"module.filename"};
+		push( @$dirs, dirname($t) );
+		$data->{$t} = delete $data->{$file};
+		$file = $t;
+	    }
 	}
     }
 
+    # Create the neccessary directories.
     make_path( $dir,
 	       ( map { $dir . "/" . $_ } @$dirs ),
 	       { verbose => $options->{trace} } );
 
-    use App::Module::Setup::Templates;
+    my $massage;
+    if ( $options->{'install-templates'} ) {
+	$massage = sub { $_[0] };
+    }
+    else {
+	require App::Module::Setup::Templates;
+	$massage = App::Module::Setup::Templates->can("templater");
+    }
 
     for my $target ( @$files ) {
 	open( my $fd, '>', $dir . "/" . $target )
 	  or croak( "Error opening ", "$dir/$target: $!\n" );
-	print { $fd } App::Module::Setup::Templates::templater( $data->{$target}, $vars );
+	print { $fd } $massage->( $data->{$target}, $vars );
 	close($fd)
 	  or croak( "Error writing $target: $!\n" );
 	warn( "Wrote: $dir/$target\n" )
@@ -142,13 +124,14 @@ sub load_templates_from_directory {
 
     find( { wanted => sub {
 		return if length($_) < $dl; # skip top
-		my $f = substr( $_, $dl );
+		my $f = substr( $_, $dl );  # file relative to top
 		if ( -d $_ ) {
 		    push( @$dirs, $f );
 		    return;
 		}
 		return unless -f $_;
 		return if /~$/;
+
 		push( @$files, $f );
 		open( my $fd, '<', $_ )
 		  or croak( "Error reading template $_: $!" );
@@ -158,9 +141,56 @@ sub load_templates_from_directory {
 	    },
 	    no_chdir => 1,
 	  }, $dir );
+
     return ( $files, $dirs, $data );
 }
 
+
+=head1 NAME
+
+App::Module::Setup - a simple setup for a new module
+
+
+=head1 SYNOPSIS
+
+Nothing in here is meant for public consumption. Use F<module-setup>
+from the command line.
+
+    module-setup --author="A.U. Thor" --email=a.u.thor@example.com Foo::Bar
+
+
+=head1 DESCRIPTION
+
+This is the core module for App::Module::Setup. If you're not looking
+to extend or alter the behavior of this module, you probably want to
+look at L<module-setup> instead.
+
+App::Module::Setup is used to create a skeletal CPAN distribution,
+including basic builder scripts, tests, documentation, and module
+code. This is done through just one method, C<main>.
+
+
+=head1 METHODS
+
+=head2 App::Module::Setup->main( $options )
+
+C<main> is the only method you should need to use from outside this
+module; all the other methods are called internally by this one.
+
+This method creates the distribution and populates it with the all the
+requires files.
+
+It takes a reference to a hash of params, as follows:
+
+    module       # module to create in distro
+    version      # initial version
+    author       # author's full name (taken from C<getpwuid> if not provided)
+    email        # author's email address
+    verbose      # bool: print progress messages; defaults to 0
+    template     # template set to use
+    install-templates # bool: just install the selected templates
+
+=cut
 
 
 =head1 AUTHOR

@@ -5,3 +5,7 @@ Revision history for App-Module-Setup
 
 0.02	2013-07-01
 	First working prototype.
+
+0.03	2013-07-02
+	Add --install-templates.
+	Many documentation fixes and updates.

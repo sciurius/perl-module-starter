@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Jun 30 21:15:32 2013
 # Last Modified By: Johan Vromans
-# Last Modified On: Mon Jul  1 16:52:56 2013
-# Update Count    : 28
+# Last Modified On: Tue Jul  2 10:36:53 2013
+# Update Count    : 39
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -52,11 +52,7 @@ sub app_setup {
       {
        verbose		=> 0,		# verbose processing
 
-       author		=> "",
-       email		=> "",
-       cpanid		=> "",
-       module		=> "",
-       template		=> "default",
+       template 	=> "default",
 
        # Development options (not shown with -help).
        debug		=> 0,		# debugging
@@ -74,10 +70,10 @@ sub app_setup {
        _argv		=> [ @ARGV ],
       };
 
-
-    for ( @configs ) {
-	if ( -f "$_/config" ) {
-	    app_config($options, "<default>", "$_/config" );
+    # Process standard config, if present.
+    for my $cfg ( @configs ) {
+	if ( -f "$cfg/config" ) {
+	    app_config($options, "<default>", "$cfg/config" );
 	    last;
 	}
     }
@@ -94,6 +90,7 @@ sub app_setup {
 	  'cpanid=s',
 	  'module=s',
 	  'template=s',
+	  'install-templates',
 
 	  # Configuration handling.
 	  'config=s'		=> sub { app_config($options, $_[0], $_[1]) },
@@ -113,10 +110,13 @@ sub app_setup {
     # GNU convention: message to STDOUT upon request.
     app_usage(\*STDOUT, 0) if $help;
 
-    # Take module name from command line if not specified with --module.
-    $options->{module} ||= shift(@ARGV);
-    # Bail out if none.
-    app_usage(\*STDERR, 3) unless $options->{module};
+    unless ( $options->{'install-templates'} ) {
+	# Take module name from command line if not specified with --module.
+	$options->{module} ||= shift(@ARGV);
+	# Bail out if none.
+	app_usage(\*STDERR, 3) unless $options->{module};
+    }
+
     # Bail out if command line arguments remain.
     app_usage(\*STDERR, 2) if @ARGV;
 
@@ -140,6 +140,7 @@ Usage: $0 [options] [ module ]
     --module=MMM	the new module
     --cpanid=XXX	author's CPAN Id*
     --template=XXX	select a set of templates*
+    --install-templates	install the default templates
     --config=CFG	load options from config file
     --help		this message
     --ident		show identification
@@ -176,11 +177,13 @@ sub app_config {
 	    carp( "Invalid content in $config, line $." );
 	}
     }
+
+    close($fd);
 }
 
 =head1 NAME
 
-module-setup - Generate boilerplate for a new module
+module-setup - Generate boilerplate files for a new module
 
 =head1 SYNOPSIS
 
@@ -188,16 +191,18 @@ module-setup - Generate boilerplate for a new module
 
 =head1 DESCRIPTION
 
-module-setup is a boilerplate generator to new Perl modules.
+B<module-setup> is a boilerplate generator for new Perl modules.
 
 Why, yet another one?
 
 All existing boilerplate generators suit many users, but abhor others.
 They can do too much, or too little, or use conventions that not
-everyone uses.
+everyone agrees with.
 
-module-setup uses a set of customisable templates so everyone can
-tailer it to whatever needs may arise.
+B<module-setup> uses a set of customisable templates so everyone can
+tailor it to whatever needs may arise. Its design goal is to be
+extremely simple for unexperienced users, while still being useful for
+more advanced module writing.
 
 =head1 COMMAND LINE OPTIONS
 
@@ -222,14 +227,15 @@ This option can be preset in an optional configuration file.
 
 Specifies the CPAN id of the author of the module.
 
-If this option is not given, the id will be inferred from the email address is possible.
+If this option is not given, the id will be inferred from the email
+address if possible.
 
 This option can be preset in an optional configuration file.
 
-=item B<--templates=>I<set>
+=item B<--template=>I<set>
 
 Specifies the set of templates to use for this module.
-See L<TEMPLATES>. Default value is C<default>.
+See L</"TEMPLATES">. Default set is C<default>.
 
 This option can be preset in an optional configuration file.
 
@@ -237,7 +243,7 @@ This option can be preset in an optional configuration file.
 
 Specifies the name of the new module to be created.
 
-Alternatively, the module name may also be specified as a command line
+Alternatively, the module name can also be specified as a command line
 argument, e.g.
 
     module-setup Foo::Bar
@@ -245,7 +251,23 @@ argument, e.g.
 =item B<--config=>I<config>
 
 Specifies the name of an alternate config file to be loaded.
-See L<CONFIG FILES>.
+See L</"CONFIG FILES">.
+
+Note that the config file is processed at the point it appears on the
+command line, possibly overwriting values already specified.
+
+=item B<--install-templates>
+
+Installs the default set of templates to the local disk, suitable for
+tailoring to one's needs. No further processing is done.
+
+The templates are installed in subdirectory C<templates/default> under
+the current directory, and will be used instead of the built-in
+templates for subsequent runs of B<module-setup> in the same
+directory.
+
+You can move the templates to the config location if you want to use
+them for other module projects.
 
 =item B<--help>
 
@@ -263,39 +285,41 @@ Some information can be preset in a config file. This is particulary
 useful for global information that is not likely to change, like the
 author's name and email address.
 
-module-setup tries to find a config file in two location.
-First it tries $HOME/.config/module-setup/config, if this is missing,
-it tries $HOME/.module-setup/config .
+B<module-setup> tries to find a config file in two locations.
+First it tries C<$HOME/.config/module-setup/config>, if this is missing,
+it tries C<$HOME/.module-setup/config>.
 
 The config file should contain settings like:
 
     name = A.U. Thor
     email: a.u.thor@example.com
     cpanid = thorax
-    templates = default
+    template = default
 
 Empty lines and lines starting with C<;> or C<#> are ignored.
 
 =head1 TEMPLATES
 
-module-setup creates the distribution directory and populates it with
-boilerplate files. The distribution directory is the same as the name
-of the module, with all C<::> replaced with C<->. E.g., the directory
-for C<Foo::Bar> would be C<Foo-Bar>.
+B<module-setup> creates the distribution directory and populates it with
+boilerplate files. The name of the distribution directory is the same
+as the name of the module, with all C<::> replaced with C<->. E.g.,
+the directory name for module C<Foo::Bar> would be C<Foo-Bar>.
 
-After creating this directory, module-setup copies all files from the
+After creating this directory, B<module-setup> copies all files from the
 templates directory into the distribution directory.
 
-If the selected templates set is C<modstart>, then the following
-locations are tried:
+The source directory for the templates can be selected with a
+B<--template> option or B<template> setting in the config file. For
+example, if the selected template set is C<modstart>, then the
+following locations are tried:
 
     ./templates/modstart/
     $HOME/.config/module-setup/templates/modstart/
     $HOME/.module-setup/templates/modstart/
 
-The default templates set is named C<default>. If no suitale templates
+The default template set is named C<default>. If no suitable templates
 can be found in any of the locations, a default set is provided by
-module-setup.
+B<module-setup>.
 
 =head2 Variable substitution
 
@@ -314,45 +338,45 @@ The following variables are currently supported:
 
 =item author.name
 
-E.g., A.U. Thor
+The name of the author, e.g., C<A.U. Thor>.
 
 =item author.email
 
-E.g., a.u.thor@example.com
+The author's email address, e.g., C<a.u.thor@example.com>,
 
 =item author.cpanid
 
-E.g., THORAX
+The author's CPAN id, e.g., C<THORAX>.
 
 =item module.name
 
-E.g., Foo::Bar
+The name of the module to be created, e.g., C<Foo::Bar>.
 
 =item module.version
 
-E.g., 0.01
+The initial version of the module, e.g., C<0.01>.
 
 =item module.distname
 
-E.g., Foo-Bar
+The distribution name for the module, e.g., C<Foo-Bar>.
 
 =item module.distnamelc
 
-E.g., foo-bar
+Same, but all lowercase. E.g., C<foo-bar>.
 
 =item module.filename
 
-E.g., Foo/Bar.pm
+The file name for the module, e.g., C<Foo/Bar.pm>.
 
 =item current.year
 
-E.g., 2013
+The current year, for copyrights and such. E.g., C<2013>.
 
 =back
 
 =head2 Default templates
 
-The default set of templates are
+The default set of templates consists of the following files:
 
     Changes
     lib/_Module.pm
@@ -361,8 +385,8 @@ The default set of templates are
     README
     t/00-load.t
 
-Note that the name C<_Module.pm> is magic, the template will be copied
-as the name of the new module.
+Note that the filename C<_Module.pm> is magic, this template will be
+copied under the filename of the new module.
 
 =head1 AUTHOR
 

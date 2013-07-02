@@ -14,8 +14,8 @@ diag( "Testing App::Module::Setup $App::Module::Setup::VERSION, Perl $], $^X" );
 
 # Set up a clean working directory.
 $tests++, ok( chdir("t"), "Change to test dir" ) if -d "t";
-$tests += 3;
-ok( remove_tree("ivp"), "Clean work dir" );
+$tests += 2;
+remove_tree("ivp");
 ok( mkdir("ivp"), "Create new work dir" );
 chdir("ivp") or BAIL_OUT("Error creating directory for testing");
 ok( 1, "Work dir set up " );
