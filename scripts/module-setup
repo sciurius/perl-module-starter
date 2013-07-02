@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Jun 30 21:15:32 2013
 # Last Modified By: Johan Vromans
-# Last Modified On: Tue Jul  2 10:36:53 2013
-# Update Count    : 39
+# Last Modified On: Tue Jul  2 20:07:14 2013
+# Update Count    : 40
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -404,7 +404,7 @@ automatically be notified of progress on your bug as I make changes.
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc App::Module::Setup
+    perldoc module-setup
 
 You can also look for information at:
 

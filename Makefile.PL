@@ -14,6 +14,14 @@ WriteMakefile(
     PREREQ_PM => {
         'Test::More' => 0,
     },
+    META_MERGE => {
+      "meta-spec" => { version => 2 },
+      "no_index" => {
+        "file" => [
+           "lib/App/Module/Setup/Templates/Default.pm",
+        ]
+      },
+    },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'App-Module-Setup-*' },
 );
