@@ -3,8 +3,8 @@
 # Author          : Johan Vromans
 # Created On      : Sun Jun 30 21:15:32 2013
 # Last Modified By: Johan Vromans
-# Last Modified On: Tue Jul  2 20:07:14 2013
-# Update Count    : 40
+# Last Modified On: Wed Jul  3 18:25:41 2013
+# Update Count    : 56
 # Status          : Unknown, Use with caution!
 
 ################ Common stuff ################
@@ -51,7 +51,7 @@ sub app_setup {
     my $options =
       {
        verbose		=> 0,		# verbose processing
-
+       postcmd		=> [],
        template 	=> "default",
 
        # Development options (not shown with -help).
@@ -78,9 +78,6 @@ sub app_setup {
 	}
     }
 
-    # Return defaults if no options to process.
-    return $options unless @ARGV;
-
     # Sorry, layout is a bit ugly...
     if ( !GetOptions
 	 ($options,
@@ -90,7 +87,10 @@ sub app_setup {
 	  'cpanid=s',
 	  'module=s',
 	  'template=s',
+	  'postcmd=s@',
 	  'install-templates',
+
+	  'git' => sub { push( @{ $options->{postcmd} }, "git init" ) },
 
 	  # Configuration handling.
 	  'config=s'		=> sub { app_config($options, $_[0], $_[1]) },
@@ -103,43 +103,47 @@ sub app_setup {
 	  'debug',
 	 ) )
     {
-	# GNU convention: message to STDERR upon failure.
-	app_usage(\*STDERR, 2);
+	app_usage(2);
     }
 
-    # GNU convention: message to STDOUT upon request.
-    app_usage(\*STDOUT, 0) if $help;
+    app_usage(0) if $help;
 
     unless ( $options->{'install-templates'} ) {
 	# Take module name from command line if not specified with --module.
 	$options->{module} ||= shift(@ARGV);
 	# Bail out if none.
-	app_usage(\*STDERR, 3) unless $options->{module};
+	app_usage(3) unless $options->{module};
     }
 
     # Bail out if command line arguments remain.
-    app_usage(\*STDERR, 2) if @ARGV;
+    app_usage(2) if @ARGV;
 
-    app_ident(\*STDOUT) if $ident;
+    app_ident() if $ident;
 
     $options;
 }
 
 sub app_ident {
-    my ($fh) = @_;
-    print {$fh} ("This is $my_package [$my_name $my_version]\n");
+    print ("This is $my_package [$my_name $my_version]\n");
 }
 
 sub app_usage {
-    my ($fh, $exit) = @_;
-    app_ident($fh);
-    print ${fh} <<EndOfUsage;
+    my ($exit) = @_;
+
+    # GNU convention: message to STDOUT upon request, STDERR if error.
+    $exit ? select(STDERR) : select(STDOUT);
+
+    app_ident();
+
+    print <<EndOfUsage;
 Usage: $0 [options] [ module ]
     --author=NAME	full name of author*
     --email=EMAIL	email address of author*
     --module=MMM	the new module
     --cpanid=XXX	author's CPAN Id*
     --template=XXX	select a set of templates*
+    --postcmd=XXX	command(s) to execute after creating*
+    --git		set up a git repo after creating
     --install-templates	install the default templates
     --config=CFG	load options from config file
     --help		this message
@@ -159,11 +163,11 @@ EndOfUsage
 
 sub app_config {
     my ($options, $optname, $config) = @_;
-    croak("$config: $!\n") unless -e $config;
+    die( "$config: $!\n" ) unless -e $config;
     push(@{$options->{_config}}, $config);
 
     open( my $fd, '<', $config )
-      or croak( "Error opening $config: $!" );
+      or die( "Error opening $config: $!" );
 
     while ( <$fd> ) {
 	chomp;
@@ -171,10 +175,15 @@ sub app_config {
 	next if /^\s*[;#]/;
 
 	if ( /^(.*?)\s*[:=]\s*(.*)/ ) {
-	    $options->{$1} = $2;
+	    if ( ref($options->{$1}) eq 'ARRAY' ) {
+		push( @{ $options->{$1} }, $2 );
+	    }
+	    else {
+		$options->{$1} = $2;
+	    }
 	}
 	else {
-	    carp( "Invalid content in $config, line $." );
+	    warn( "Invalid content in $config, line $.\n" );
 	}
     }
 
@@ -239,6 +248,23 @@ See L</"TEMPLATES">. Default set is C<default>.
 
 This option can be preset in an optional configuration file.
 
+=item B<--postcmd=>I<cmd>
+
+Specifies a command to execute after creating the boilerplate files.
+The command will be executed in the distribution directory using the
+system shell. This can be used to postprocess the created files, set
+up a git repository, and so on.
+
+This option can occur multiple times, all commands will be executed.
+This option can be preset in an optional configuration file.
+
+=item B<--git>
+
+Initialises an empty git repository after creating the boilerplate
+files.
+
+This is a shortcut for B<--postcmd="git init">.
+
 =item B<--module=>I<name>
 
 Specifies the name of the new module to be created.
@@ -295,6 +321,7 @@ The config file should contain settings like:
     email: a.u.thor@example.com
     cpanid = thorax
     template = default
+    postcmd = git init
 
 Empty lines and lines starting with C<;> or C<#> are ignored.
 
@@ -330,7 +357,8 @@ Toolkit notation, e.g.,
     ... in some text the occurrence of [% foobar %] will be replaced ...
 
 In the above example, C<[% foobar %]> will be replaced with the value
-of the variable C<foobar>.
+of the variable C<foobar>. If there is no value available, a warning
+will be given and the substitution is not done.
 
 The following variables are currently supported:
 

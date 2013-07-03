@@ -4,16 +4,13 @@ package App::Module::Setup;
 
 ### Please use this module via the command line module-setup tool.
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use warnings;
 use strict;
-use Carp qw(croak);
 use File::Find;
 use File::Basename qw( dirname );
 use File::Path qw( make_path );
-
-$Carp::Internal{ (__PACKAGE__) }++;
 
 sub main {
     my $options = shift;
@@ -44,8 +41,10 @@ sub main {
 	( my $t = $mod ) =~ s/::/\//g;
 	$vars->{"module.filename"} = $t . ".pm";	# Foo/Bar.pm
 	$vars->{"author.cpanid"} ||= $1
-	  if $options->{email} =~ /^(.*)\@cpan.org$/i;
-	$vars->{"author.cpanid"} = uc( $vars->{"author.cpanid"} );
+	  if $options->{email}
+	     && $options->{email} =~ /^(.*)\@cpan.org$/i;
+	$vars->{"author.cpanid"} = uc( $vars->{"author.cpanid"} )
+	  if $vars->{"author.cpanid"};
     }
 
     if ( -d $dir ) {
@@ -89,11 +88,6 @@ sub main {
 	}
     }
 
-    # Create the neccessary directories.
-    make_path( $dir,
-	       ( map { $dir . "/" . $_ } @$dirs ),
-	       { verbose => $options->{trace} } );
-
     my $massage;
     if ( $options->{'install-templates'} ) {
 	$massage = sub { $_[0] };
@@ -103,15 +97,33 @@ sub main {
 	$massage = App::Module::Setup::Templates->can("templater");
     }
 
+    # Create the neccessary directories.
+    make_path($dir);
+    chdir($dir) or die( "Error creating directory $dir\n" );
+    make_path( @$dirs, { verbose => $options->{trace} } );
+
     for my $target ( @$files ) {
-	open( my $fd, '>', $dir . "/" . $target )
-	  or croak( "Error opening ", "$dir/$target: $!\n" );
+	$vars->{" file"} = $target;
+	open( my $fd, '>', $target )
+	  or die( "Error opening ", "$dir/$target: $!\n" );
 	print { $fd } $massage->( $data->{$target}, $vars );
 	close($fd)
-	  or croak( "Error writing $target: $!\n" );
+	  or die( "Error writing $target: $!\n" );
 	warn( "Wrote: $dir/$target\n" )
 	  if $options->{verbose};
     }
+
+    # Postprocessing, e.g., set up git repo.
+    foreach my $cmd ( @{ $options->{postcmd} } ) {
+	system( $cmd );
+    }
+
+    # If we have a git repo, add all boilerplate files.
+    if ( -d ".git" ) {
+	system( "git", "add", @$files );
+    }
+
+    chdir("..");		# see t/90-ivp.t
 
     return 1;			# assume everything went ok
 }
@@ -134,7 +146,7 @@ sub load_templates_from_directory {
 
 		push( @$files, $f );
 		open( my $fd, '<', $_ )
-		  or croak( "Error reading template $_: $!" );
+		  or die( "Error reading template $_: $!\n" );
 		local $/;
 		$data->{$f} = <$fd>;
 		close($fd);
@@ -188,6 +200,7 @@ It takes a reference to a hash of params, as follows:
     email        # author's email address
     verbose      # bool: print progress messages; defaults to 0
     template     # template set to use
+    postcmd	 # array ref of commands to execute after creating
     install-templates # bool: just install the selected templates
 
 =cut

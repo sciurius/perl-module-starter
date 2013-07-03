@@ -1,5 +1,11 @@
 Revision history for App-Module-Setup
 
+0.05	2013-07-03
+	Add --postcmd and --git command line options.
+	Do not replace text if no replacement is available.
+	Better warnings.
+	Minor bug fixes.
+
 0.04	2013-07-02
 	(META) Prevent App::Module::Setup::Templates::Default from
 	being indexed.
