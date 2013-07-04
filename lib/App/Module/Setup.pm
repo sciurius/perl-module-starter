@@ -4,13 +4,13 @@ package App::Module::Setup;
 
 ### Please use this module via the command line module-setup tool.
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use warnings;
 use strict;
 use File::Find;
 use File::Basename qw( dirname );
-use File::Path qw( make_path );
+use File::Path qw( mkpath );
 
 sub main {
     my $options = shift;
@@ -98,9 +98,9 @@ sub main {
     }
 
     # Create the neccessary directories.
-    make_path($dir);
+    mkpath($dir, $options->{trace}, 0777 );
     chdir($dir) or die( "Error creating directory $dir\n" );
-    make_path( @$dirs, { verbose => $options->{trace} } );
+    mkpath( $dirs, $options->{trace}, 0777 );
 
     for my $target ( @$files ) {
 	$vars->{" file"} = $target;

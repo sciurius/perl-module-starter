@@ -12,7 +12,7 @@ WriteMakefile(
     PL_FILES            => {},
     EXE_FILES		=> \@scripts,
     PREREQ_PM => {
-        'Test::More' => 0,
+        'Test::More' => 0.87_01,
     },
     META_MERGE => {
       "meta-spec" => { version => 2 },

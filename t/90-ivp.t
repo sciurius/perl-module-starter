@@ -1,7 +1,7 @@
 #!perl
 
 use Test::More;
-use File::Path qw( remove_tree );
+use File::Path qw( rmtree );
 use File::Find;
 
 my $tests = 1;
@@ -15,7 +15,7 @@ diag( "Testing App::Module::Setup $App::Module::Setup::VERSION, Perl $], $^X" );
 # Set up a clean working directory.
 $tests++, ok( chdir("t"), "Change to test dir" ) if -d "t";
 $tests += 2;
-remove_tree("ivp");
+rmtree("ivp");
 ok( mkdir("ivp"), "Create new work dir" );
 chdir("ivp") or BAIL_OUT("Error creating directory for testing");
 ok( 1, "Work dir set up " );
