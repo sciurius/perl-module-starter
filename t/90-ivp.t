@@ -26,6 +26,7 @@ ok( App::Module::Setup->main
 	email  => "jv\@cpan.org",
 	module => "App::Module::Setup",
 	template => "default",
+	year => 2013,
 	_package => "Sciurix",
 	_name => "module-setup",
 	_version => $App::Module::Setup::VERSION,
